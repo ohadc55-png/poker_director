@@ -1,0 +1,68 @@
+{
+  "app": {
+    "title": "Poker Director",
+    "subtitle": "Live Poker Tournament Management"
+  },
+  "nav": {
+    "home": "Home",
+    "history": "History",
+    "timer": "Timer",
+    "blinds": "Blinds",
+    "players": "Players",
+    "prizes": "Prizes",
+    "tables": "Tables",
+    "chips": "Chips",
+    "settings": "Settings"
+  },
+  "tournament": {
+    "new": "New Tournament",
+    "name": "Tournament Name",
+    "date": "Date",
+    "location": "Location",
+    "gameType": "Game Type",
+    "buyIn": "Buy-in",
+    "fee": "Fee/Rake",
+    "startingChips": "Starting Chips",
+    "create": "Create Tournament",
+    "delete": "Delete",
+    "active": "Active",
+    "completed": "Completed"
+  },
+  "timer": {
+    "level": "Level",
+    "next": "Next",
+    "break": "Break",
+    "elapsed": "Elapsed",
+    "players": "Players",
+    "rebuys": "Rebuys",
+    "addons": "Add-ons",
+    "prizePool": "Prize Pool",
+    "avgStack": "Avg Stack",
+    "shortcuts": "Space = Play/Pause | ← → = Change Level | + = Add Time | F = Fullscreen"
+  },
+  "players": {
+    "register": "Add Player",
+    "search": "Search player...",
+    "bustOut": "Bust Out",
+    "rebuy": "Rebuy",
+    "addon": "Add-on",
+    "remove": "Remove",
+    "active": "Active",
+    "busted": "Busted",
+    "registered": "Registered",
+    "noPlayers": "No players to display"
+  },
+  "blinds": {
+    "title": "Blind Structure",
+    "generator": "Auto Generator",
+    "save": "Save",
+    "addLevel": "Add Level",
+    "addBreak": "Add Break"
+  },
+  "prizes": {
+    "title": "Prize Distribution",
+    "templates": "Templates",
+    "addPlace": "Add Place",
+    "total": "Total"
+  }
+}

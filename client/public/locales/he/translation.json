@@ -1,0 +1,68 @@
+{
+  "app": {
+    "title": "Poker Director",
+    "subtitle": "ניהול טורנירי פוקר בזמן אמת"
+  },
+  "nav": {
+    "home": "ראשי",
+    "history": "היסטוריה",
+    "timer": "שעון",
+    "blinds": "בליינדים",
+    "players": "שחקנים",
+    "prizes": "פרסים",
+    "tables": "שולחנות",
+    "chips": "צ'יפים",
+    "settings": "הגדרות"
+  },
+  "tournament": {
+    "new": "טורניר חדש",
+    "name": "שם הטורניר",
+    "date": "תאריך",
+    "location": "מיקום",
+    "gameType": "סוג משחק",
+    "buyIn": "Buy-in",
+    "fee": "Fee/Rake",
+    "startingChips": "Starting Chips",
+    "create": "צור טורניר",
+    "delete": "מחק",
+    "active": "פעילים",
+    "completed": "הושלמו"
+  },
+  "timer": {
+    "level": "רמה",
+    "next": "הבא",
+    "break": "הפסקה",
+    "elapsed": "זמן שעבר",
+    "players": "שחקנים",
+    "rebuys": "ריבאיים",
+    "addons": "אדאונים",
+    "prizePool": "Prize Pool",
+    "avgStack": "ממוצע צ'יפים",
+    "shortcuts": "Space = Play/Pause | ← → = שנה רמה | + = הוסף זמן | F = מסך מלא"
+  },
+  "players": {
+    "register": "הוסף שחקן",
+    "search": "חיפוש שחקן...",
+    "bustOut": "הדחה",
+    "rebuy": "Rebuy",
+    "addon": "Add-on",
+    "remove": "הסר",
+    "active": "פעיל",
+    "busted": "הודח",
+    "registered": "רשום",
+    "noPlayers": "אין שחקנים להצגה"
+  },
+  "blinds": {
+    "title": "מבנה בליינדים",
+    "generator": "מחולל אוטומטי",
+    "save": "שמור",
+    "addLevel": "הוסף רמה",
+    "addBreak": "הוסף הפסקה"
+  },
+  "prizes": {
+    "title": "חלוקת פרסים",
+    "templates": "תבניות",
+    "addPlace": "הוסף מקום",
+    "total": "סה\"כ"
+  }
+}

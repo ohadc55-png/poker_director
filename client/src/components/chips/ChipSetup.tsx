@@ -137,28 +137,89 @@ export function ChipSetup({ tournamentId }: ChipSetupProps) {
 }
 
 function calculateDistribution(chips: any[], startingStack: number): { value: number; color: string; count: number }[] {
-  const sorted = [...chips].filter((c) => c.value > 0).sort((a, b) => b.value - a.value);
-  let remaining = startingStack;
-  const result: { value: number; color: string; count: number }[] = [];
+  const sorted = [...chips].filter((c) => c.value > 0).sort((a, b) => a.value - b.value);
+  if (sorted.length === 0) return [];
 
-  for (const chip of sorted) {
-    const count = Math.floor(remaining / chip.value);
-    if (count > 0) {
-      result.push({ value: chip.value, color: chip.color, count });
-      remaining -= count * chip.value;
-    }
+  const n = sorted.length;
+  const allocated = sorted.map((chip) => ({ value: chip.value, color: chip.color, count: 0 }));
+
+  // Poker-practical distribution:
+  // 1. Reserve small chips for blinds/change (5 of each of the two smallest)
+  // 2. Give 1 of the largest chip
+  // 3. Fill the middle with second-largest denomination
+  // 4. Remainder in mid-range chips
+
+  // Step 1: Allocate from LARGEST to smallest with sensible counts
+  // Largest: 1, then second-largest fills bulk, small chips for change
+  let total = 0;
+
+  // Start with largest: give 1 chip
+  if (n >= 2) {
+    const largestCount = Math.min(1, Math.floor(startingStack / sorted[n - 1].value));
+    allocated[n - 1].count = largestCount;
+    total += largestCount * sorted[n - 1].value;
   }
 
-  if (remaining > 0 && sorted.length > 0) {
-    const smallest = sorted[sorted.length - 1];
-    const extra = Math.ceil(remaining / smallest.value);
-    const existing = result.find((r) => r.value === smallest.value);
-    if (existing) {
-      existing.count += extra;
+  // Reserve smallest chips: 5 each
+  for (let i = 0; i < Math.min(2, n - 1); i++) {
+    const count = Math.min(5, Math.floor((startingStack - total) / sorted[i].value));
+    allocated[i].count = count;
+    total += count * sorted[i].value;
+  }
+
+  // Middle chips: 1 each
+  for (let i = 2; i < n - 2; i++) {
+    const count = Math.min(1, Math.floor((startingStack - total) / sorted[i].value));
+    allocated[i].count = count;
+    total += count * sorted[i].value;
+  }
+
+  // Fill remaining with second-largest
+  if (n >= 2) {
+    const idx = n - 2;
+    const fillCount = Math.floor((startingStack - total) / sorted[idx].value);
+    allocated[idx].count += fillCount;
+    total += fillCount * sorted[idx].value;
+  }
+
+  // Step 2: Adjust to reach exact stack
+  let remaining = startingStack - total;
+  let iter = 0;
+  while (remaining !== 0 && iter < 300) {
+    iter++;
+    if (remaining > 0) {
+      // Add chips — prefer second-largest, then mid-range
+      let added = false;
+      const order = n > 2
+        ? [n - 2, n - 3, ...Array.from({length: n}, (_, i) => i).filter(i => i !== n-2 && i !== n-3).reverse()]
+        : Array.from({length: n}, (_, i) => i).reverse();
+      for (const i of order) {
+        if (i >= 0 && i < n && sorted[i].value <= remaining) {
+          allocated[i].count++;
+          remaining -= sorted[i].value;
+          added = true;
+          break;
+        }
+      }
+      if (!added) {
+        allocated[0].count++;
+        remaining -= sorted[0].value;
+      }
     } else {
-      result.push({ value: smallest.value, color: smallest.color, count: extra });
+      // Over — remove from smallest that's > 0
+      for (let i = 0; i < n; i++) {
+        if (allocated[i].count > 0 && allocated[i].value <= -remaining) {
+          allocated[i].count--;
+          remaining += allocated[i].value;
+          break;
+        }
+      }
+      if (remaining < 0) {
+        // Can't fix cleanly
+        break;
+      }
     }
   }
 
-  return result.sort((a, b) => a.value - b.value);
+  return allocated.filter((c) => c.count > 0);
 }

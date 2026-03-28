@@ -107,6 +107,9 @@ function TournamentCard({ tournament, onDelete }: { tournament: any; onDelete: (
             {tournament.location && <span>{tournament.location}</span>}
             <span>{tournament.game_type}</span>
             <span>Buy-in: {formatCurrency(tournament.buy_in_amount, tournament.currency)}</span>
+            {tournament.bounty_amount > 0 && (
+              <span className="text-orange-400">Bounty: {formatCurrency(tournament.bounty_amount, tournament.currency)}</span>
+            )}
           </div>
         </div>
       </div>
@@ -143,6 +146,7 @@ function CreateTournamentForm({ onSubmit, onCancel }: { onSubmit: (data: any) =>
     rebuy_deadline_level: 6,
     addon_amount: 100,
     addon_chips: 15000,
+    bounty_amount: 0,
     late_reg_level: 6,
     currency: '₪',
   });
@@ -176,6 +180,7 @@ function CreateTournamentForm({ onSubmit, onCancel }: { onSubmit: (data: any) =>
         <FormField label="Max Rebuys" type="number" value={form.max_rebuys} onChange={(v) => setForm({ ...form, max_rebuys: parseInt(v) })} />
         <FormField label="Add-on Amount" type="number" value={form.addon_amount} onChange={(v) => setForm({ ...form, addon_amount: parseFloat(v) })} />
         <FormField label="Add-on Chips" type="number" value={form.addon_chips} onChange={(v) => setForm({ ...form, addon_chips: parseInt(v) })} />
+        <FormField label="Bounty (0 = ללא)" type="number" value={form.bounty_amount} onChange={(v) => setForm({ ...form, bounty_amount: parseFloat(v) })} />
       </div>
       <div className="flex gap-2">
         <button

@@ -1,5 +1,5 @@
 import {
-  Play, Pause, Square, Maximize, RefreshCw, PlusCircle, FastForward,
+  Play, Pause, Square, Maximize, RefreshCw, PlusCircle, FastForward, DollarSign, Users, UserX,
 } from 'lucide-react';
 import { useTimerStore } from '../../stores/timerStore';
 import { useTournamentStore } from '../../stores/tournamentStore';
@@ -14,7 +14,13 @@ interface TimerControlsProps {
 
 export function TimerControls({ tournamentId, onPlayerAction }: TimerControlsProps) {
   const { isRunning, isFinished, start, pause, resume, stop, nextLevel } = useTimerStore();
-  const { tournament } = useTournamentStore();
+  const { tournament, players } = useTournamentStore();
+
+  const entries = players.filter((p: any) => p.has_entry).length;
+  const activePlayers = players.filter((p) => p.status !== 'busted' && p.status !== 'waiting').length;
+  const busted = players.filter((p) => p.status === 'busted').length;
+  const totalRebuys = players.reduce((sum, p) => sum + p.rebuys, 0);
+  const totalAddons = players.reduce((sum, p) => sum + p.addons, 0);
 
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
@@ -25,109 +31,136 @@ export function TimerControls({ tournamentId, onPlayerAction }: TimerControlsPro
   };
 
   return (
-    <div className="flex items-center justify-center gap-2 md:gap-4 flex-wrap">
-      {/* Play / Pause */}
-      <button
-        onClick={() => {
-          if (isFinished) return;
-          if (isRunning) pause(tournamentId);
-          else resume(tournamentId);
-        }}
-        disabled={isFinished}
-        className={cn(
-          'w-16 h-16 rounded-full flex items-center justify-center transition-all',
-          isRunning
-            ? 'bg-yellow-500 hover:bg-yellow-600 text-black'
-            : 'bg-primary hover:bg-primary/90 text-primary-foreground',
-          isFinished && 'opacity-50 cursor-not-allowed'
+    <div className="space-y-5">
+      {/* Stats cards */}
+      <div className="grid grid-cols-3 md:grid-cols-5 gap-2 md:gap-3">
+        <StatCard icon={<DollarSign className="w-4 h-4" />} label="כניסות" value={entries} color="text-green-400" />
+        <StatCard icon={<Users className="w-4 h-4" />} label="במשחק" value={activePlayers} color="text-blue-400" />
+        <StatCard icon={<UserX className="w-4 h-4" />} label="הודחו" value={busted} color="text-red-400" />
+        <StatCard icon={<RefreshCw className="w-4 h-4" />} label="ריבאיים" value={totalRebuys} color="text-primary" />
+        <StatCard icon={<PlusCircle className="w-4 h-4" />} label="אדאונים" value={totalAddons} color="text-blue-400" />
+      </div>
+
+      {/* Controls */}
+      <div className="flex items-center justify-center gap-3 md:gap-4 flex-wrap">
+        {/* Play / Pause */}
+        <button
+          onClick={() => {
+            if (isFinished) return;
+            if (isRunning) pause(tournamentId);
+            else resume(tournamentId);
+          }}
+          disabled={isFinished}
+          className={cn(
+            'w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg',
+            isRunning
+              ? 'bg-yellow-500 hover:bg-yellow-600 text-black'
+              : 'bg-primary hover:bg-primary/90 text-primary-foreground',
+            isFinished && 'opacity-50 cursor-not-allowed'
+          )}
+          title={isRunning ? 'Pause (Space)' : 'Play (Space)'}
+        >
+          {isRunning ? <Pause className="w-7 h-7" /> : <Play className="w-7 h-7 ms-1" />}
+        </button>
+
+        {/* Skip */}
+        <ActionButton
+          onClick={() => nextLevel(tournamentId)}
+          icon={<FastForward className="w-5 h-5" />}
+          label="דלג"
+          className="text-yellow-400 hover:bg-yellow-500/10 border-yellow-500/20"
+        />
+
+        {/* Divider */}
+        <div className="w-px h-10 bg-border mx-1 hidden md:block" />
+
+        {/* Rebuy */}
+        {tournament?.rebuy_amount && (
+          <ActionButton
+            onClick={() => onPlayerAction?.('rebuy')}
+            icon={<RefreshCw className="w-5 h-5" />}
+            label="Rebuy"
+            badge={totalRebuys > 0 ? totalRebuys : undefined}
+            className="text-primary hover:bg-primary/10 border-primary/20"
+          />
         )}
-        title={isRunning ? 'Pause (Space)' : 'Play (Space)'}
-      >
-        {isRunning ? <Pause className="w-7 h-7" /> : <Play className="w-7 h-7 ms-1" />}
-      </button>
 
-      {/* Skip to next level/break */}
-      <ControlButton
-        onClick={() => nextLevel(tournamentId)}
-        title="דלג לשלב הבא (→)"
-        className="text-yellow-400 hover:bg-yellow-500/10"
-      >
-        <FastForward className="w-4 h-4" />
-        <span className="text-xs">דלג</span>
-      </ControlButton>
+        {/* Add-on */}
+        {tournament?.addon_amount && (
+          <ActionButton
+            onClick={() => onPlayerAction?.('addon')}
+            icon={<PlusCircle className="w-5 h-5" />}
+            label="Addon"
+            badge={totalAddons > 0 ? totalAddons : undefined}
+            className="text-blue-400 hover:bg-blue-500/10 border-blue-500/20"
+          />
+        )}
 
-      {/* Divider */}
-      <div className="w-px h-8 bg-border mx-2 hidden md:block" />
+        {/* Divider */}
+        <div className="w-px h-10 bg-border mx-1 hidden md:block" />
 
-      {/* Rebuy */}
-      {tournament?.rebuy_amount && (
-        <ControlButton
-          onClick={() => onPlayerAction?.('rebuy')}
-          title="Rebuy"
-          className="text-primary hover:bg-primary/10"
-        >
-          <RefreshCw className="w-4 h-4" />
-          <span className="text-xs">Rebuy</span>
-        </ControlButton>
-      )}
+        {/* Fullscreen */}
+        <ActionButton
+          onClick={toggleFullscreen}
+          icon={<Maximize className="w-5 h-5" />}
+          label="מסך מלא"
+          className="text-muted-foreground hover:bg-accent border-border"
+        />
 
-      {/* Add-on */}
-      {tournament?.addon_amount && (
-        <ControlButton
-          onClick={() => onPlayerAction?.('addon')}
-          title="Add-on"
-          className="text-blue-400 hover:bg-blue-500/10"
-        >
-          <PlusCircle className="w-4 h-4" />
-          <span className="text-xs">Addon</span>
-        </ControlButton>
-      )}
-
-      {/* Divider */}
-      <div className="w-px h-8 bg-border mx-2 hidden md:block" />
-
-      {/* Fullscreen */}
-      <ControlButton onClick={toggleFullscreen} title="Fullscreen (F)">
-        <Maximize className="w-5 h-5" />
-      </ControlButton>
-
-      {/* Stop / End Tournament */}
-      <ControlButton
-        onClick={() => {
-          if (confirm('לסיים את הטורניר?')) {
-            stop(tournamentId);
-          }
-        }}
-        title="סיום טורניר"
-        className="text-destructive hover:bg-destructive/10"
-      >
-        <Square className="w-5 h-5" />
-      </ControlButton>
+        {/* Stop */}
+        <ActionButton
+          onClick={() => {
+            if (confirm('לסיים את הטורניר?')) stop(tournamentId);
+          }}
+          icon={<Square className="w-5 h-5" />}
+          label="סיום"
+          className="text-destructive hover:bg-destructive/10 border-destructive/20"
+        />
+      </div>
     </div>
   );
 }
 
-function ControlButton({
+function ActionButton({
   onClick,
-  title,
-  children,
+  icon,
+  label,
+  badge,
   className,
 }: {
   onClick: () => void;
-  title: string;
-  children: React.ReactNode;
+  icon: React.ReactNode;
+  label: string;
+  badge?: number;
   className?: string;
 }) {
   return (
     <button
       onClick={onClick}
-      title={title}
       className={cn(
-        'w-10 h-10 md:w-12 md:h-12 rounded-lg bg-secondary hover:bg-accent flex items-center justify-center gap-1 transition-colors text-foreground',
+        'relative flex flex-col items-center justify-center gap-1 px-4 py-2.5 rounded-xl bg-secondary/50 border transition-colors min-w-[60px]',
         className
       )}
     >
-      {children}
+      {icon}
+      <span className="text-[10px] font-medium">{label}</span>
+      {badge !== undefined && (
+        <span className="absolute -top-1.5 -end-1.5 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center px-1">
+          {badge}
+        </span>
+      )}
     </button>
+  );
+}
+
+function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
+  return (
+    <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-card border border-border">
+      <div className={cn('flex-shrink-0', color)}>{icon}</div>
+      <div>
+        <div className="text-lg font-bold text-foreground leading-tight">{value}</div>
+        <div className="text-[10px] text-muted-foreground">{label}</div>
+      </div>
+    </div>
   );
 }

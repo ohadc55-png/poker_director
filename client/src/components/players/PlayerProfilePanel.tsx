@@ -1,5 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import { X } from 'lucide-react';
+import { X, Crosshair } from 'lucide-react';
 import { usePlayersStore } from '../../stores/playersStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { cn, formatCurrency, getPlayerInitials, computeBadges } from '../../lib/utils';
@@ -94,57 +94,79 @@ export function PlayerProfilePanel({ onClose }: Props) {
               {playerHistory.length === 0 ? (
                 <p className="text-sm text-muted-foreground">{he ? 'אין היסטוריה' : 'No history'}</p>
               ) : (
-                <div className="overflow-x-auto rounded-lg border border-border">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-border bg-secondary/50">
-                        <th className="px-2 py-2 text-start font-medium text-muted-foreground">{he ? 'טורניר' : 'Tournament'}</th>
-                        <th className="px-2 py-2 text-center font-medium text-muted-foreground">{he ? 'מקום' : 'Place'}</th>
-                        <th className="px-2 py-2 text-center font-medium text-muted-foreground">R</th>
-                        <th className="px-2 py-2 text-center font-medium text-muted-foreground">A</th>
-                        <th className="px-2 py-2 text-end font-medium text-muted-foreground">{he ? 'רווח/הפסד' : 'Net'}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {playerHistory.map((h, i) => (
-                        <tr
-                          key={i}
-                          className={cn(
-                            'border-b border-border/30',
-                            h.net_result > 0 && 'bg-primary/5',
-                            h.net_result < 0 && 'bg-destructive/5'
+                <div className="space-y-2">
+                  {playerHistory.map((h, i) => {
+                    const bountyEarnings = (h.bounties_in_tournament || 0) * (h.bounty_amount || 0);
+                    return (
+                      <div
+                        key={i}
+                        className={cn(
+                          'rounded-lg border border-border/50 p-3 space-y-2',
+                          h.net_result > 0 && 'border-primary/20 bg-primary/5',
+                          h.net_result < 0 && 'border-destructive/20 bg-destructive/5'
+                        )}
+                      >
+                        {/* Tournament name + date */}
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium text-sm text-foreground">{h.tournament_name}</div>
+                            <div className="text-xs text-muted-foreground">{h.tournament_date}</div>
+                          </div>
+                          {h.finish_place && (
+                            <span className={cn(
+                              'text-lg font-bold',
+                              h.finish_place === 1 && 'text-yellow-500',
+                              h.finish_place === 2 && 'text-gray-400',
+                              h.finish_place === 3 && 'text-amber-700',
+                              h.finish_place > 3 && 'text-muted-foreground'
+                            )}>
+                              #{h.finish_place}
+                            </span>
                           )}
-                        >
-                          <td className="px-2 py-2">
-                            <div className="font-medium text-foreground truncate max-w-[140px]">{h.tournament_name}</div>
-                            <div className="text-muted-foreground">{h.tournament_date}</div>
-                          </td>
-                          <td className="px-2 py-2 text-center">
-                            {h.finish_place ? (
-                              <span className={cn(
-                                'font-bold',
-                                h.finish_place === 1 && 'text-yellow-500',
-                                h.finish_place === 2 && 'text-gray-400',
-                                h.finish_place === 3 && 'text-amber-700'
-                              )}>
-                                #{h.finish_place}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </td>
-                          <td className="px-2 py-2 text-center text-muted-foreground">{h.rebuys}</td>
-                          <td className="px-2 py-2 text-center text-muted-foreground">{h.addons}</td>
-                          <td className={cn(
-                            'px-2 py-2 text-end font-medium',
-                            h.net_result > 0 ? 'text-primary' : h.net_result < 0 ? 'text-destructive' : 'text-muted-foreground'
-                          )}>
-                            {h.net_result > 0 ? '+' : ''}{formatCurrency(h.net_result)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                        </div>
+
+                        {/* Details row */}
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                          {h.rebuys > 0 && (
+                            <span className="text-muted-foreground">Rebuys: <span className="text-foreground font-medium">{h.rebuys}</span></span>
+                          )}
+                          {h.addons > 0 && (
+                            <span className="text-muted-foreground">Addons: <span className="text-foreground font-medium">{h.addons}</span></span>
+                          )}
+                          <span className="text-muted-foreground">{he ? 'השקעה' : 'Invested'}: <span className="text-foreground font-medium">{formatCurrency(h.total_invested, h.currency)}</span></span>
+                          {h.prize_won > 0 && (
+                            <span className="text-muted-foreground">{he ? 'פרס' : 'Prize'}: <span className="text-primary font-medium">{formatCurrency(h.prize_won, h.currency)}</span></span>
+                          )}
+                        </div>
+
+                        {/* Knocked out by + bounties */}
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                          {h.knocked_out_by_name && (
+                            <span className="text-muted-foreground">
+                              {he ? 'הודח ע"י' : 'Knocked out by'}: <span className="text-destructive font-medium">{h.knocked_out_by_name}</span>
+                            </span>
+                          )}
+                          {h.bounties_in_tournament > 0 && (
+                            <span className="inline-flex items-center gap-1 text-orange-400">
+                              <Crosshair className="w-3 h-3" />
+                              {h.bounties_in_tournament} {he ? 'הדחות' : 'bounties'}
+                              {bountyEarnings > 0 && (
+                                <span className="font-medium">({formatCurrency(bountyEarnings, h.currency)})</span>
+                              )}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Net result */}
+                        <div className={cn(
+                          'text-sm font-bold text-end',
+                          h.net_result > 0 ? 'text-primary' : h.net_result < 0 ? 'text-destructive' : 'text-muted-foreground'
+                        )}>
+                          {h.net_result > 0 ? '+' : ''}{formatCurrency(h.net_result, h.currency)}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

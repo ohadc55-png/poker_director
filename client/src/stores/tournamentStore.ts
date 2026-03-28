@@ -26,6 +26,8 @@ interface TournamentStore {
 
   // Player actions
   registerPlayer: (tournamentId: string, data: any) => Promise<void>;
+  entryPlayer: (tournamentId: string, playerId: string) => Promise<void>;
+  cancelEntryPlayer: (tournamentId: string, playerId: string) => Promise<void>;
   bustPlayer: (tournamentId: string, playerId: string, knockedOutByPlayerId?: string) => Promise<void>;
   rebuyPlayer: (tournamentId: string, playerId: string) => Promise<void>;
   addonPlayer: (tournamentId: string, playerId: string) => Promise<void>;
@@ -108,7 +110,14 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
 
   registerPlayer: async (tournamentId, data) => {
     await api.registerPlayer(tournamentId, data);
-    // Players update will come via socket
+  },
+
+  entryPlayer: async (tournamentId, playerId) => {
+    await api.entryPlayer(tournamentId, playerId);
+  },
+
+  cancelEntryPlayer: async (tournamentId, playerId) => {
+    await api.cancelEntryPlayer(tournamentId, playerId);
   },
 
   bustPlayer: async (tournamentId, playerId, knockedOutByPlayerId?) => {

@@ -12,6 +12,7 @@ import { tableRoutes } from './routes/table.routes.js';
 import { financialRoutes } from './routes/financial.routes.js';
 import { templateRoutes } from './routes/template.routes.js';
 import { statisticsRoutes } from './routes/statistics.routes.js';
+import { groupRoutes } from './routes/group.routes.js';
 
 export function createApp() {
   const app = express();
@@ -29,6 +30,7 @@ export function createApp() {
   app.use('/api/financial', financialRoutes);
   app.use('/api/templates', templateRoutes);
   app.use('/api/statistics', statisticsRoutes);
+  app.use('/api/groups', groupRoutes);
 
   // Serve client in production
   if (config.nodeEnv === 'production') {

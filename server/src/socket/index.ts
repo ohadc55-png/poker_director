@@ -37,46 +37,24 @@ export function setupSocket(httpServer: HttpServer): SocketServer<ClientToServer
       socket.leave(`tournament:${tournament_id}`);
     });
 
-    // Timer controls
-    socket.on('timer:start', ({ tournament_id }) => {
-      const timerService = TimerService.getInstance();
-      timerService.start(tournament_id);
-    });
+    // Timer controls — wrap with error handling
+    function timerAction(fn: () => void) {
+      try {
+        fn();
+      } catch (err: any) {
+        console.error('Timer error:', err.message);
+        socket.emit('timer:error' as any, { error: err.message });
+      }
+    }
 
-    socket.on('timer:pause', ({ tournament_id }) => {
-      const timerService = TimerService.getInstance();
-      timerService.pause(tournament_id);
-    });
-
-    socket.on('timer:resume', ({ tournament_id }) => {
-      const timerService = TimerService.getInstance();
-      timerService.resume(tournament_id);
-    });
-
-    socket.on('timer:stop', ({ tournament_id }) => {
-      const timerService = TimerService.getInstance();
-      timerService.stop(tournament_id);
-    });
-
-    socket.on('timer:nextLevel', ({ tournament_id }) => {
-      const timerService = TimerService.getInstance();
-      timerService.nextLevel(tournament_id);
-    });
-
-    socket.on('timer:prevLevel', ({ tournament_id }) => {
-      const timerService = TimerService.getInstance();
-      timerService.prevLevel(tournament_id);
-    });
-
-    socket.on('timer:setLevel', ({ tournament_id, level }) => {
-      const timerService = TimerService.getInstance();
-      timerService.setLevel(tournament_id, level);
-    });
-
-    socket.on('timer:addTime', ({ tournament_id, seconds }) => {
-      const timerService = TimerService.getInstance();
-      timerService.addTime(tournament_id, seconds);
-    });
+    socket.on('timer:start', ({ tournament_id }) => timerAction(() => TimerService.getInstance().start(tournament_id)));
+    socket.on('timer:pause', ({ tournament_id }) => timerAction(() => TimerService.getInstance().pause(tournament_id)));
+    socket.on('timer:resume', ({ tournament_id }) => timerAction(() => TimerService.getInstance().resume(tournament_id)));
+    socket.on('timer:stop', ({ tournament_id }) => timerAction(() => TimerService.getInstance().stop(tournament_id)));
+    socket.on('timer:nextLevel', ({ tournament_id }) => timerAction(() => TimerService.getInstance().nextLevel(tournament_id)));
+    socket.on('timer:prevLevel', ({ tournament_id }) => timerAction(() => TimerService.getInstance().prevLevel(tournament_id)));
+    socket.on('timer:setLevel', ({ tournament_id, level }) => timerAction(() => TimerService.getInstance().setLevel(tournament_id, level)));
+    socket.on('timer:addTime', ({ tournament_id, seconds }) => timerAction(() => TimerService.getInstance().addTime(tournament_id, seconds)));
 
     socket.on('disconnect', () => {
       console.log(`Client disconnected: ${socket.id}`);

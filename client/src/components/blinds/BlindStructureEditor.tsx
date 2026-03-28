@@ -223,7 +223,8 @@ function BlindGenerator({ onGenerate, onCancel }: { onGenerate: (params: any) =>
     target_duration_hours: 4,
     level_duration_minutes: 20,
     style: 'regular' as const,
-    include_antes: true,
+    starting_big_blind: 50,
+    ante_type: 'bb_ante' as 'none' | 'regular' | 'bb_ante',
     ante_start_level: 5,
     break_every_n_levels: 4,
     break_duration_minutes: 10,
@@ -249,7 +250,24 @@ function BlindGenerator({ onGenerate, onCancel }: { onGenerate: (params: any) =>
             <option value="deep_stack">Deep Stack</option>
           </select>
         </div>
+        <Field label="Big Blind ראשון" type="number" value={params.starting_big_blind} onChange={(v) => setParams({ ...params, starting_big_blind: v })} />
+        <div>
+          <label className="text-xs text-muted-foreground block mb-1">סוג אנטה</label>
+          <select
+            value={params.ante_type}
+            onChange={(e) => setParams({ ...params, ante_type: e.target.value as any })}
+            className="w-full bg-secondary border border-border rounded px-2 py-1.5 text-sm"
+          >
+            <option value="none">ללא אנטה</option>
+            <option value="regular">אנטה רגיל</option>
+            <option value="bb_ante">BB Ante</option>
+          </select>
+        </div>
+        {params.ante_type !== 'none' && (
+          <Field label="אנטה מתחיל ברמה" type="number" value={params.ante_start_level} onChange={(v) => setParams({ ...params, ante_start_level: v })} />
+        )}
         <Field label="הפסקה כל X רמות" type="number" value={params.break_every_n_levels} onChange={(v) => setParams({ ...params, break_every_n_levels: v })} />
+        <Field label="משך הפסקה (דקות)" type="number" value={params.break_duration_minutes} onChange={(v) => setParams({ ...params, break_duration_minutes: v })} />
       </div>
       <div className="flex gap-2">
         <button onClick={() => onGenerate(params)} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">צור מבנה</button>

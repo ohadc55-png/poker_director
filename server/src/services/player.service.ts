@@ -80,10 +80,25 @@ export class PlayerService {
     const existing = this.playerRepo.getTournamentPlayer(tournamentId, playerId);
     if (existing) throw new AppError(400, 'Player already registered');
 
-    // Register
+    // Register (without payment — entry is separate)
     const tp = this.playerRepo.register(tournamentId, playerId);
 
-    // Record buy-in transaction
+    this.emitPlayersUpdate(tournamentId);
+
+    return tp;
+  }
+
+  // Entry = pay buy-in
+  entry(tournamentId: string, playerId: string) {
+    const tournament = this.tournamentRepo.getById(tournamentId);
+    if (!tournament) throw new AppError(404, 'Tournament not found');
+
+    const tp = this.playerRepo.getTournamentPlayer(tournamentId, playerId);
+    if (!tp) throw new AppError(404, 'Player not in tournament');
+    if (tp.has_entry) throw new AppError(400, 'Player already has entry');
+
+    this.playerRepo.setEntry(tournamentId, playerId, true);
+
     this.financialRepo.addTransaction({
       tournament_id: tournamentId,
       player_id: playerId,
@@ -102,7 +117,25 @@ export class PlayerService {
     this.emitPlayersUpdate(tournamentId);
     this.emitPrizePoolUpdate(tournamentId);
 
-    return tp;
+    return this.playerRepo.getTournamentPlayer(tournamentId, playerId);
+  }
+
+  // Cancel entry = undo buy-in
+  cancelEntry(tournamentId: string, playerId: string) {
+    const tp = this.playerRepo.getTournamentPlayer(tournamentId, playerId);
+    if (!tp) throw new AppError(404, 'Player not in tournament');
+    if (!tp.has_entry) throw new AppError(400, 'Player has no entry to cancel');
+
+    this.playerRepo.setEntry(tournamentId, playerId, false);
+
+    // Remove buyin + fee transactions for this player
+    this.financialRepo.removeTransactions(tournamentId, playerId, 'buyin');
+    this.financialRepo.removeTransactions(tournamentId, playerId, 'fee');
+
+    this.emitPlayersUpdate(tournamentId);
+    this.emitPrizePoolUpdate(tournamentId);
+
+    return this.playerRepo.getTournamentPlayer(tournamentId, playerId);
   }
 
   getTournamentPlayers(tournamentId: string) {
@@ -228,10 +261,11 @@ export class PlayerService {
     if (!tournament) return;
 
     const players = this.playerRepo.getTournamentPlayers(tournamentId);
+    const paidEntries = players.filter((p: any) => p.has_entry).length;
     const totalRebuys = players.reduce((sum, p) => sum + p.rebuys, 0);
     const totalAddons = players.reduce((sum, p) => sum + p.addons, 0);
     const total =
-      players.length * tournament.buy_in_amount +
+      paidEntries * tournament.buy_in_amount +
       totalRebuys * (tournament.rebuy_amount || 0) +
       totalAddons * (tournament.addon_amount || 0);
 

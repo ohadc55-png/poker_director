@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { UserPlus, UserMinus, RefreshCw, Plus, Search, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { UserPlus, UserMinus, RefreshCw, Plus, Search, X, DollarSign, Undo2, Crosshair } from 'lucide-react';
 import { useTournamentStore } from '../../stores/tournamentStore';
 import { api } from '../../lib/api';
 import { cn } from '../../lib/utils';
@@ -9,7 +9,7 @@ interface PlayerListProps {
 }
 
 export function PlayerList({ tournamentId }: PlayerListProps) {
-  const { tournament, players, registerPlayer, bustPlayer, rebuyPlayer, addonPlayer, removePlayer } = useTournamentStore();
+  const { tournament, players, registerPlayer, entryPlayer, cancelEntryPlayer, bustPlayer, rebuyPlayer, addonPlayer, removePlayer } = useTournamentStore();
   const [showRegister, setShowRegister] = useState(false);
   const [search, setSearch] = useState('');
   const [bustingPlayerId, setBustingPlayerId] = useState<string | null>(null);
@@ -22,7 +22,8 @@ export function PlayerList({ tournamentId }: PlayerListProps) {
       )
     : players;
 
-  const activePlayers = players.filter((p) => p.status === 'active' || p.status === 'registered');
+  const paidPlayers = players.filter((p) => (p as any).has_entry);
+  const waitingPlayers = players.filter((p) => p.status === 'waiting');
 
   function handleBustClick(playerId: string) {
     setBustingPlayerId(playerId);
@@ -45,7 +46,7 @@ export function PlayerList({ tournamentId }: PlayerListProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold">
-          שחקנים ({activePlayers.length} פעילים / {players.length} רשומים)
+          שחקנים ({paidPlayers.length} פעילים / {players.length} רשומים)
         </h2>
         <button
           onClick={() => setShowRegister(!showRegister)}
@@ -81,7 +82,7 @@ export function PlayerList({ tournamentId }: PlayerListProps) {
               className="w-full bg-secondary border border-border rounded px-3 py-1.5 text-sm"
             >
               <option value="">-- בחר שחקן --</option>
-              {activePlayers
+              {paidPlayers
                 .filter((p) => p.player_id !== bustingPlayerId)
                 .map((p) => (
                   <option key={p.player_id} value={p.player_id}>
@@ -125,76 +126,156 @@ export function PlayerList({ tournamentId }: PlayerListProps) {
           <thead>
             <tr className="border-b border-border text-muted-foreground">
               <th className="px-3 py-2 text-start">שם</th>
+              <th className="px-3 py-2 text-center">Entry</th>
+              <th className="px-3 py-2 text-center">Rebuy</th>
+              <th className="px-3 py-2 text-center">Addon</th>
+              {!!tournament?.bounty_amount && <th className="px-3 py-2 text-center">Bounty</th>}
               <th className="px-3 py-2 text-start">סטטוס</th>
-              <th className="px-3 py-2 text-center">שולחן</th>
               <th className="px-3 py-2 text-center">מקום</th>
-              <th className="px-3 py-2 text-center">Rebuys</th>
-              <th className="px-3 py-2 text-center">Addons</th>
               <th className="px-3 py-2 text-end">פעולות</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((player) => (
-              <tr key={player.id} className="border-b border-border/50 hover:bg-accent/50">
-                <td className="px-3 py-2 font-medium">
-                  {player.player_name}
-                  {player.player_nickname && (
-                    <span className="text-muted-foreground ms-1">({player.player_nickname})</span>
+            {filtered.map((player) => {
+              const hasEntry = !!(player as any).has_entry;
+              const maxRebuys = tournament?.max_rebuys;
+              const rebuyLocked = maxRebuys !== null && maxRebuys !== undefined && player.rebuys >= maxRebuys;
+              const canRebuy = !!tournament?.rebuy_amount && !rebuyLocked;
+              const canAddon = !!tournament?.addon_amount && player.addons === 0 && player.status !== 'busted';
+
+              return (
+                <tr key={player.id} className="border-b border-border/50 hover:bg-accent/50">
+                  <td className="px-3 py-2 font-medium">
+                    {player.player_name}
+                    {player.player_nickname && (
+                      <span className="text-muted-foreground ms-1">({player.player_nickname})</span>
+                    )}
+                  </td>
+
+                  {/* Entry button */}
+                  <td className="px-3 py-2 text-center">
+                    {hasEntry ? (
+                      <button
+                        onClick={() => cancelEntryPlayer(tournamentId, player.player_id)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-green-500/20 text-green-400 hover:bg-red-500/10 hover:text-red-400 text-xs font-medium transition-colors group"
+                        title="ביטול Entry"
+                      >
+                        <DollarSign className="w-3.5 h-3.5" />
+                        <span className="group-hover:hidden">שולם</span>
+                        <span className="hidden group-hover:inline">ביטול</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => entryPlayer(tournamentId, player.player_id)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-secondary text-muted-foreground hover:bg-green-500/20 hover:text-green-400 text-xs font-medium transition-colors"
+                        title="Entry — תשלום כניסה"
+                      >
+                        <DollarSign className="w-3.5 h-3.5" />
+                        Entry
+                      </button>
+                    )}
+                  </td>
+
+                  {/* Rebuy button */}
+                  <td className="px-3 py-2 text-center">
+                    {tournament?.rebuy_amount ? (
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => rebuyPlayer(tournamentId, player.player_id)}
+                          disabled={!canRebuy}
+                          className={cn(
+                            'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors',
+                            canRebuy
+                              ? 'bg-secondary text-muted-foreground hover:bg-primary/20 hover:text-primary'
+                              : 'bg-secondary/50 text-muted-foreground/40 cursor-not-allowed'
+                          )}
+                          title={rebuyLocked ? `מקסימום ${maxRebuys} ריבאיים` : 'Rebuy'}
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          {player.rebuys > 0 ? player.rebuys : ''}
+                        </button>
+                        {maxRebuys !== null && maxRebuys !== undefined && (
+                          <span className="text-[10px] text-muted-foreground">/{maxRebuys}</span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground/40">-</span>
+                    )}
+                  </td>
+
+                  {/* Addon button */}
+                  <td className="px-3 py-2 text-center">
+                    {tournament?.addon_amount ? (
+                      player.addons > 0 ? (
+                        <span className="text-xs text-green-400 font-medium">✓</span>
+                      ) : (
+                        <button
+                          onClick={() => addonPlayer(tournamentId, player.player_id)}
+                          disabled={!canAddon}
+                          className={cn(
+                            'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors',
+                            canAddon
+                              ? 'bg-secondary text-muted-foreground hover:bg-blue-500/20 hover:text-blue-400'
+                              : 'bg-secondary/50 text-muted-foreground/40 cursor-not-allowed'
+                          )}
+                          title="Add-on"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      )
+                    ) : (
+                      <span className="text-xs text-muted-foreground/40">-</span>
+                    )}
+                  </td>
+
+                  {/* Bounty */}
+                  {!!tournament?.bounty_amount && (
+                    <td className="px-3 py-2 text-center">
+                      {(player.bounties ?? 0) > 0 ? (
+                        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-orange-500/15 text-orange-400 text-xs font-bold">
+                          <Crosshair className="w-3 h-3" />
+                          {player.bounties}
+                          <span className="text-[10px] font-normal text-orange-400/70">
+                            ({((player.bounties ?? 0) * tournament.bounty_amount).toLocaleString()}{tournament.currency})
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/40">0</span>
+                      )}
+                    </td>
                   )}
-                </td>
-                <td className="px-3 py-2">
-                  <StatusBadge status={player.status} />
-                </td>
-                <td className="px-3 py-2 text-center text-muted-foreground">
-                  {player.seat_number ? `${player.seat_number}` : '-'}
-                </td>
-                <td className="px-3 py-2 text-center">
-                  {player.finish_place ? `#${player.finish_place}` : '-'}
-                </td>
-                <td className="px-3 py-2 text-center">{player.rebuys}</td>
-                <td className="px-3 py-2 text-center">{player.addons}</td>
-                <td className="px-3 py-2">
-                  <div className="flex items-center justify-end gap-1">
-                    {(player.status === 'active' || player.status === 'registered') && (
+
+                  <td className="px-3 py-2">
+                    <StatusBadge status={player.status} />
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    {player.finish_place ? `#${player.finish_place}` : '-'}
+                  </td>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center justify-end gap-1">
+                      {(player.status === 'active' || player.status === 'registered') && (
+                        <button
+                          onClick={() => handleBustClick(player.player_id)}
+                          className="px-2 py-1 rounded bg-destructive/10 text-destructive hover:bg-destructive/20 text-xs"
+                          title="Bust Out"
+                        >
+                          <UserMinus className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                       <button
-                        onClick={() => handleBustClick(player.player_id)}
-                        className="px-2 py-1 rounded bg-destructive/10 text-destructive hover:bg-destructive/20 text-xs"
-                        title="Bust Out"
+                        onClick={() => {
+                          if (confirm('הסר שחקן מהטורניר?')) removePlayer(tournamentId, player.player_id);
+                        }}
+                        className="px-2 py-1 rounded text-muted-foreground hover:text-destructive text-xs"
+                        title="Remove"
                       >
-                        <UserMinus className="w-3.5 h-3.5" />
+                        <X className="w-3.5 h-3.5" />
                       </button>
-                    )}
-                    {tournament?.rebuy_amount && (player.status === 'active' || player.status === 'busted') && (
-                      <button
-                        onClick={() => rebuyPlayer(tournamentId, player.player_id)}
-                        className="px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 text-xs"
-                        title="Rebuy"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    {tournament?.addon_amount && player.addons === 0 && player.status !== 'busted' && (
-                      <button
-                        onClick={() => addonPlayer(tournamentId, player.player_id)}
-                        className="px-2 py-1 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 text-xs"
-                        title="Add-on"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => {
-                        if (confirm('הסר שחקן מהטורניר?')) removePlayer(tournamentId, player.player_id);
-                      }}
-                      className="px-2 py-1 rounded text-muted-foreground hover:text-destructive text-xs"
-                      title="Remove"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -207,16 +288,18 @@ export function PlayerList({ tournamentId }: PlayerListProps) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    active: 'bg-green-500/20 text-green-400',
-    registered: 'bg-blue-500/20 text-blue-400',
-    busted: 'bg-red-500/20 text-red-400',
-    waiting: 'bg-yellow-500/20 text-yellow-400',
+  const config: Record<string, { style: string; label: string }> = {
+    active: { style: 'bg-green-500/20 text-green-400', label: 'פעיל' },
+    registered: { style: 'bg-green-500/20 text-green-400', label: 'פעיל' },
+    busted: { style: 'bg-red-500/20 text-red-400', label: 'הודח' },
+    waiting: { style: 'bg-yellow-500/20 text-yellow-400', label: 'ממתין' },
   };
 
+  const { style, label } = config[status] || { style: 'bg-secondary', label: status };
+
   return (
-    <span className={cn('text-xs px-2 py-0.5 rounded', styles[status] || 'bg-secondary')}>
-      {status}
+    <span className={cn('text-xs px-2 py-0.5 rounded', style)}>
+      {label}
     </span>
   );
 }
@@ -230,9 +313,20 @@ function RegisterForm({
   onRegister: (data: any) => Promise<void>;
   onCancel: () => void;
 }) {
+  const [mode, setMode] = useState<'search' | 'group'>('search');
   const [name, setName] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  const [groups, setGroups] = useState<any[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<any>(null);
+  const [registeringGroup, setRegisteringGroup] = useState(false);
+  const { players: registeredPlayers } = useTournamentStore();
+
+  useEffect(() => {
+    api.getGroups().then(setGroups).catch(() => {});
+  }, []);
+
+  const registeredIds = new Set(registeredPlayers.map((p) => p.player_id));
 
   const handleSearch = async (query: string) => {
     setName(query);
@@ -250,43 +344,153 @@ function RegisterForm({
     }
   };
 
+  const handleRegisterGroup = async () => {
+    if (!selectedGroup) return;
+    setRegisteringGroup(true);
+    const unregistered = selectedGroup.members.filter((m: any) => !registeredIds.has(m.player_id));
+    for (const member of unregistered) {
+      try {
+        await onRegister({ player_id: member.player_id });
+      } catch {}
+    }
+    setRegisteringGroup(false);
+    setSelectedGroup(null);
+  };
+
   return (
-    <div className="p-4 rounded-lg bg-card border border-border space-y-3">
-      <h3 className="font-semibold">רישום שחקן</h3>
-      <div className="relative">
-        <input
-          type="text"
-          placeholder="שם שחקן (חפש או צור חדש)..."
-          value={name}
-          onChange={(e) => handleSearch(e.target.value)}
-          className="w-full bg-secondary border border-border rounded px-3 py-2 text-sm"
-          autoFocus
-        />
-        {searchResults.length > 0 && (
-          <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-auto">
-            {searchResults.map((player) => (
-              <button
-                key={player.id}
-                onClick={() => onRegister({ player_id: player.id })}
-                className="w-full text-start px-3 py-2 hover:bg-accent text-sm flex justify-between"
-              >
-                <span>{player.name}</span>
-                {player.nickname && <span className="text-muted-foreground">{player.nickname}</span>}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className="flex gap-2">
+    <div className="p-4 rounded-lg bg-card border border-border space-y-3 animate-slide-in">
+      {/* Mode tabs */}
+      <div className="flex gap-1 p-1 bg-secondary rounded-lg w-fit">
         <button
-          onClick={() => name.trim() && onRegister({ name: name.trim() })}
-          disabled={!name.trim()}
-          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50"
+          onClick={() => setMode('search')}
+          className={cn('px-3 py-1.5 rounded text-xs font-medium transition-colors',
+            mode === 'search' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+          )}
         >
-          רשום שחקן חדש
+          חיפוש שחקן
         </button>
-        <button onClick={onCancel} className="px-4 py-2 rounded-lg bg-secondary text-sm">ביטול</button>
+        <button
+          onClick={() => setMode('group')}
+          className={cn('px-3 py-1.5 rounded text-xs font-medium transition-colors',
+            mode === 'group' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          לפי קבוצה
+        </button>
       </div>
+
+      {mode === 'search' && (
+        <>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="שם שחקן (חפש או צור חדש)..."
+              value={name}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="w-full bg-secondary border border-border rounded px-3 py-2 text-sm"
+              autoFocus
+            />
+            {searchResults.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-auto">
+                {searchResults.map((player) => (
+                  <button
+                    key={player.id}
+                    onClick={() => onRegister({ player_id: player.id })}
+                    disabled={registeredIds.has(player.id)}
+                    className={cn(
+                      'w-full text-start px-3 py-2 text-sm flex justify-between',
+                      registeredIds.has(player.id) ? 'opacity-40 cursor-not-allowed' : 'hover:bg-accent'
+                    )}
+                  >
+                    <span>{player.name}</span>
+                    {registeredIds.has(player.id)
+                      ? <span className="text-xs text-muted-foreground">רשום</span>
+                      : player.nickname && <span className="text-muted-foreground">{player.nickname}</span>
+                    }
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => name.trim() && onRegister({ name: name.trim() })}
+              disabled={!name.trim()}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50"
+            >
+              רשום שחקן חדש
+            </button>
+            <button onClick={onCancel} className="px-4 py-2 rounded-lg bg-secondary text-sm">ביטול</button>
+          </div>
+        </>
+      )}
+
+      {mode === 'group' && (
+        <>
+          {groups.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-2">
+              אין קבוצות. צור קבוצות בעמוד השחקנים.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {groups.map((group) => {
+                const unregistered = group.members.filter((m: any) => !registeredIds.has(m.player_id));
+                const isSelected = selectedGroup?.id === group.id;
+                return (
+                  <button
+                    key={group.id}
+                    onClick={() => setSelectedGroup(isSelected ? null : group)}
+                    className={cn(
+                      'w-full text-start p-3 rounded-lg border transition-all',
+                      isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-border hover:bg-accent/50'
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: group.color }} />
+                        <span className="font-medium text-sm">{group.name}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {unregistered.length} חדשים / {group.member_count} סה"כ
+                      </span>
+                    </div>
+                    {isSelected && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {group.members.map((m: any) => (
+                          <span
+                            key={m.player_id}
+                            className={cn(
+                              'text-xs px-2 py-0.5 rounded',
+                              registeredIds.has(m.player_id) ? 'bg-muted text-muted-foreground line-through' : 'bg-primary/15 text-primary'
+                            )}
+                          >
+                            {m.player_name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <div className="flex gap-2">
+            {selectedGroup && (
+              <button
+                onClick={handleRegisterGroup}
+                disabled={registeringGroup}
+                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50"
+              >
+                {registeringGroup
+                  ? 'רושם...'
+                  : `רשום ${selectedGroup.members.filter((m: any) => !registeredIds.has(m.player_id)).length} שחקנים`
+                }
+              </button>
+            )}
+            <button onClick={onCancel} className="px-4 py-2 rounded-lg bg-secondary text-sm">ביטול</button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

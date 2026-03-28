@@ -17,10 +17,8 @@ export function TimerDisplay() {
   const levelDurationMs = currentBlind ? currentBlind.duration_minutes * 60 * 1000 : 0;
   const progressPercent = levelDurationMs > 0 ? ((levelDurationMs - displayMs) / levelDurationMs) * 100 : 0;
 
-  const activePlayers = players.filter((p) => p.status === 'active' || p.status === 'registered').length;
-  const totalPlayers = players.length;
-  const totalRebuys = players.reduce((sum, p) => sum + p.rebuys, 0);
-  const totalAddons = players.reduce((sum, p) => sum + p.addons, 0);
+  const entries = players.filter((p: any) => p.has_entry).length;
+  const activePlayers = players.filter((p) => p.status !== 'busted' && p.status !== 'waiting').length;
 
   // Timer color based on remaining time
   const timerColor =
@@ -95,29 +93,22 @@ export function TimerDisplay() {
       {/* Stats bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 text-center mt-4">
         <StatItem
-          label="שחקנים"
-          value={`${activePlayers} / ${totalPlayers}`}
+          label="במשחק / כניסות"
+          value={`${activePlayers} / ${entries}`}
         />
         <StatItem
           label="זמן שעבר"
           value={formatElapsedTime(totalElapsedMs)}
         />
         <StatItem
-          label="ריבאיים / אדאונים"
-          value={`${totalRebuys} / ${totalAddons}`}
-        />
-        <StatItem
           label="Prize Pool"
           value={formatCurrency(tournament?.stats?.prize_pool || 0, tournament?.currency)}
         />
+        <StatItem
+          label="Avg Stack"
+          value={activePlayers > 0 ? (tournament?.stats?.average_stack || 0).toLocaleString() : '-'}
+        />
       </div>
-
-      {/* Average stack */}
-      {activePlayers > 0 && (
-        <div className="text-muted-foreground text-sm">
-          Avg Stack: {(tournament?.stats?.average_stack || 0).toLocaleString()}
-        </div>
-      )}
     </div>
   );
 }

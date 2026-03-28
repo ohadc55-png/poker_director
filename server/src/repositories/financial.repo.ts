@@ -28,7 +28,14 @@ export class FinancialRepo {
         FROM transactions WHERE tournament_id = ?
         GROUP BY type
       `),
+      removeByPlayerAndType: this.db.prepare(
+        'DELETE FROM transactions WHERE tournament_id = ? AND player_id = ? AND type = ?'
+      ),
     };
+  }
+
+  removeTransactions(tournamentId: string, playerId: string, type: string): void {
+    this.stmts.removeByPlayerAndType.run(tournamentId, playerId, type);
   }
 
   addTransaction(data: { tournament_id: string; player_id?: string; type: string; amount: number }): void {

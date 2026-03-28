@@ -1,15 +1,18 @@
-import { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useEffect, useState, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useTournamentStore } from '../stores/tournamentStore';
 import { useTimerStore } from '../stores/timerStore';
 import { useSocket } from '../hooks/useSocket';
 import { useTimerRAF } from '../hooks/useTimerRAF';
 import { useTimerSounds } from '../hooks/useTimerSounds';
 import { formatTime, formatElapsedTime, formatCurrency, cn } from '../lib/utils';
+import { getSocket } from '../lib/socket';
 
 export function DisplayPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { tournament, blinds, players, loadTournament } = useTournamentStore();
+  const [showControls, setShowControls] = useState(false);
   const { currentLevel, isRunning, totalElapsedMs, isBreak, breakName, isFinished } = useTimerStore();
   const displayMs = useTimerRAF();
 
@@ -18,9 +21,44 @@ export function DisplayPage() {
 
   useEffect(() => {
     if (id) loadTournament(id);
-    // Auto fullscreen on load
     document.documentElement.requestFullscreen?.().catch(() => {});
   }, [id]);
+
+  const isRunningRef = useRef(isRunning);
+  isRunningRef.current = isRunning;
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (isRunningRef.current) {
+          getSocket().emit('timer:pause', { tournament_id: id! });
+        } else {
+          getSocket().emit('timer:resume', { tournament_id: id! });
+        }
+      } else if (e.key === 'Escape') {
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        } else {
+          setShowControls(true);
+        }
+      }
+    };
+    // Show controls on mouse move, hide after 3s
+    let hideTimer: ReturnType<typeof setTimeout>;
+    const handleMouse = () => {
+      setShowControls(true);
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => setShowControls(false), 3000);
+    };
+    window.addEventListener('keydown', handleKey);
+    window.addEventListener('mousemove', handleMouse);
+    return () => {
+      window.removeEventListener('keydown', handleKey);
+      window.removeEventListener('mousemove', handleMouse);
+      clearTimeout(hideTimer);
+    };
+  }, []);
 
   const currentBlind = blinds[currentLevel - 1];
   const nextBlind = blinds[currentLevel];
@@ -39,7 +77,35 @@ export function DisplayPage() {
           : 'text-green-400';
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col justify-between p-[2vw]">
+    <div className="min-h-screen bg-black text-white flex flex-col justify-between p-[2vw] relative">
+      {/* Exit bar — appears on mouse move or Escape */}
+      <div className={cn(
+        'fixed top-0 inset-x-0 z-50 flex items-center justify-between px-6 py-3 bg-black/80 backdrop-blur transition-all duration-300',
+        showControls ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'
+      )}>
+        <span className="text-sm text-white/50">מסך תצוגה</span>
+        <div className="flex gap-3">
+          <button
+            onClick={() => {
+              if (document.fullscreenElement) document.exitFullscreen();
+              else document.documentElement.requestFullscreen?.().catch(() => {});
+            }}
+            className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-sm text-white transition-colors"
+          >
+            {document.fullscreenElement ? 'יציאה ממסך מלא' : 'מסך מלא'}
+          </button>
+          <button
+            onClick={() => {
+              if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+              navigate(`/tournament/${id}`);
+            }}
+            className="px-4 py-1.5 rounded-lg bg-red-500/80 hover:bg-red-500 text-sm text-white transition-colors"
+          >
+            חזרה לניהול
+          </button>
+        </div>
+      </div>
+
       {/* Top: Tournament name */}
       <div className="text-center">
         <h1 className="text-[3vw] font-bold text-white/80">{tournament?.name || 'Tournament'}</h1>

@@ -21,6 +21,7 @@ export interface Tournament {
   addon_chips: number | null;
   addon_window_level: number | null;
   late_reg_level: number | null;
+  bounty_amount: number | null;
   guarantee: number | null;
   currency: string;
   notes: string | null;

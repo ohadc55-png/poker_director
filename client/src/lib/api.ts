@@ -40,6 +40,10 @@ export const api = {
   getTournamentPlayers: (tournamentId: string) => request<any[]>(`/tournaments/${tournamentId}/players`),
   registerPlayer: (tournamentId: string, data: any) =>
     request<any>(`/players/tournaments/${tournamentId}/register`, { method: 'POST', body: JSON.stringify(data) }),
+  entryPlayer: (tournamentId: string, playerId: string) =>
+    request<any>(`/players/tournaments/${tournamentId}/${playerId}/entry`, { method: 'POST' }),
+  cancelEntryPlayer: (tournamentId: string, playerId: string) =>
+    request<any>(`/players/tournaments/${tournamentId}/${playerId}/cancel-entry`, { method: 'POST' }),
   bustPlayer: (tournamentId: string, playerId: string, data?: { knocked_out_by_player_id?: string }) =>
     request<any>(`/players/tournaments/${tournamentId}/${playerId}/bust`, { method: 'POST', body: JSON.stringify(data || {}) }),
   rebuyPlayer: (tournamentId: string, playerId: string) =>
@@ -97,4 +101,20 @@ export const api = {
   },
   getCompletedTournaments: () => request<any[]>('/statistics/tournaments/completed'),
   getTournamentResults: (id: string) => request<any[]>(`/statistics/tournaments/${id}/results`),
+
+  // Groups
+  getGroups: () => request<any[]>('/groups'),
+  getGroup: (id: string) => request<any>(`/groups/${id}`),
+  createGroup: (data: { name: string; color?: string; description?: string }) =>
+    request<any>('/groups', { method: 'POST', body: JSON.stringify(data) }),
+  updateGroup: (id: string, data: any) =>
+    request<any>(`/groups/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteGroup: (id: string) =>
+    request<void>(`/groups/${id}`, { method: 'DELETE' }),
+  addGroupMembers: (groupId: string, playerIds: string[]) =>
+    request<any>(`/groups/${groupId}/members`, { method: 'POST', body: JSON.stringify({ player_ids: playerIds }) }),
+  removeGroupMember: (groupId: string, playerId: string) =>
+    request<any>(`/groups/${groupId}/members/${playerId}`, { method: 'DELETE' }),
+  getPlayerGroups: (playerId: string) =>
+    request<any[]>(`/groups/player/${playerId}`),
 };

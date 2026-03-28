@@ -72,6 +72,22 @@ playerRoutes.post('/tournaments/:tournamentId/register', validate(registerPlayer
   } catch (err) { next(err); }
 });
 
+playerRoutes.post('/tournaments/:tournamentId/:playerId/entry', (req, res, next) => {
+  try {
+    const service = new PlayerService(req.app.locals.db, req.app.locals.io);
+    const tp = service.entry(req.params.tournamentId, req.params.playerId);
+    res.json({ success: true, data: tp });
+  } catch (err) { next(err); }
+});
+
+playerRoutes.post('/tournaments/:tournamentId/:playerId/cancel-entry', (req, res, next) => {
+  try {
+    const service = new PlayerService(req.app.locals.db, req.app.locals.io);
+    const tp = service.cancelEntry(req.params.tournamentId, req.params.playerId);
+    res.json({ success: true, data: tp });
+  } catch (err) { next(err); }
+});
+
 playerRoutes.post('/tournaments/:tournamentId/:playerId/bust', (req, res, next) => {
   try {
     const service = new PlayerService(req.app.locals.db, req.app.locals.io);

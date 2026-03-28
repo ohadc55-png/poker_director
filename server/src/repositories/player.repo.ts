@@ -27,10 +27,11 @@ export class PlayerRepo {
       // Tournament players
       register: this.db.prepare(`
         INSERT INTO tournament_players (tournament_id, player_id, status)
-        VALUES (@tournament_id, @player_id, 'registered')
+        VALUES (@tournament_id, @player_id, 'waiting')
       `),
       getTournamentPlayers: this.db.prepare(`
-        SELECT tp.*, p.name as player_name, p.nickname as player_nickname
+        SELECT tp.*, p.name as player_name, p.nickname as player_nickname,
+          (SELECT COUNT(*) FROM knockouts k WHERE k.eliminator_player_id = tp.player_id AND k.tournament_id = tp.tournament_id) as bounties
         FROM tournament_players tp
         JOIN players p ON tp.player_id = p.id
         WHERE tp.tournament_id = ?
@@ -58,6 +59,12 @@ export class PlayerRepo {
       `),
       setKnockedOutBy: this.db.prepare(`
         UPDATE tournament_players SET knocked_out_by_player_id = ? WHERE tournament_id = ? AND player_id = ?
+      `),
+      setEntryOn: this.db.prepare(`
+        UPDATE tournament_players SET has_entry = 1, status = 'registered' WHERE tournament_id = ? AND player_id = ?
+      `),
+      setEntryOff: this.db.prepare(`
+        UPDATE tournament_players SET has_entry = 0, status = 'waiting' WHERE tournament_id = ? AND player_id = ?
       `),
       incrementRebuys: this.db.prepare(`
         UPDATE tournament_players SET rebuys = rebuys + 1 WHERE tournament_id = ? AND player_id = ?
@@ -178,17 +185,22 @@ export class PlayerRepo {
     `).get(id) as PlayerWithStats | undefined;
   }
 
-  getPlayerHistory(playerId: string): TournamentHistoryEntry[] {
+  getPlayerHistory(playerId: string): any[] {
     return this.db.prepare(`
       SELECT
         tp.tournament_id,
         t.name as tournament_name,
         t.date as tournament_date,
+        t.bounty_amount,
+        t.currency,
         tp.finish_place,
         tp.rebuys,
         tp.addons,
         tp.status,
         tp.prize_won,
+        tp.knocked_out_by_player_id,
+        (SELECT p2.name FROM players p2 WHERE p2.id = tp.knocked_out_by_player_id) as knocked_out_by_name,
+        (SELECT COUNT(*) FROM knockouts k WHERE k.eliminator_player_id = ? AND k.tournament_id = tp.tournament_id) as bounties_in_tournament,
         COALESCE((
           SELECT SUM(tx.amount) FROM transactions tx
           WHERE tx.tournament_id = tp.tournament_id AND tx.player_id = tp.player_id
@@ -203,7 +215,7 @@ export class PlayerRepo {
       JOIN tournaments t ON tp.tournament_id = t.id
       WHERE tp.player_id = ?
       ORDER BY t.date DESC
-    `).all(playerId) as TournamentHistoryEntry[];
+    `).all(playerId, playerId);
   }
 
   getPlayerRivals(playerId: string): { knocked_out_by: RivalEntry[]; knocked_out: RivalEntry[] } {
@@ -280,6 +292,14 @@ export class PlayerRepo {
 
   addon(tournamentId: string, playerId: string): void {
     this.stmts.incrementAddons.run(tournamentId, playerId);
+  }
+
+  setEntry(tournamentId: string, playerId: string, hasEntry: boolean): void {
+    if (hasEntry) {
+      this.stmts.setEntryOn.run(tournamentId, playerId);
+    } else {
+      this.stmts.setEntryOff.run(tournamentId, playerId);
+    }
   }
 
   removeFromTournament(tournamentId: string, playerId: string): void {

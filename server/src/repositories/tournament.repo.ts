@@ -14,11 +14,11 @@ export class TournamentRepo {
         INSERT INTO tournaments (name, date, location, game_type, buy_in_amount, buy_in_fee,
           starting_chips, rebuy_amount, rebuy_chips, max_rebuys, rebuy_deadline_level,
           rebuy_condition, addon_amount, addon_chips, addon_window_level, late_reg_level,
-          guarantee, currency, notes)
+          bounty_amount, guarantee, currency, notes)
         VALUES (@name, @date, @location, @game_type, @buy_in_amount, @buy_in_fee,
           @starting_chips, @rebuy_amount, @rebuy_chips, @max_rebuys, @rebuy_deadline_level,
           @rebuy_condition, @addon_amount, @addon_chips, @addon_window_level, @late_reg_level,
-          @guarantee, @currency, @notes)
+          @bounty_amount, @guarantee, @currency, @notes)
       `),
       getById: this.db.prepare('SELECT * FROM tournaments WHERE id = ?'),
       getAll: this.db.prepare('SELECT * FROM tournaments ORDER BY date DESC'),
@@ -42,6 +42,7 @@ export class TournamentRepo {
           addon_chips = COALESCE(@addon_chips, addon_chips),
           addon_window_level = COALESCE(@addon_window_level, addon_window_level),
           late_reg_level = COALESCE(@late_reg_level, late_reg_level),
+          bounty_amount = COALESCE(@bounty_amount, bounty_amount),
           guarantee = COALESCE(@guarantee, guarantee),
           currency = COALESCE(@currency, currency),
           notes = COALESCE(@notes, notes),

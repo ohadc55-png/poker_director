@@ -6,28 +6,62 @@ interface GenerateParams {
   target_duration_hours: number;
   level_duration_minutes: number;
   style: 'turbo' | 'regular' | 'deep_stack';
-  include_antes: boolean;
+  starting_big_blind: number;
+  ante_type: 'none' | 'regular' | 'bb_ante';
   ante_start_level: number;
   break_every_n_levels: number;
   break_duration_minutes: number;
 }
 
 const STYLE_FACTORS = {
-  turbo: { growthRate: 1.6, startFraction: 200 },
-  regular: { growthRate: 1.5, startFraction: 400 },
-  deep_stack: { growthRate: 1.4, startFraction: 500 },
+  turbo: { growthRate: 1.6 },
+  regular: { growthRate: 1.5 },
+  deep_stack: { growthRate: 1.4 },
 };
 
+// Standard chip denominations for rounding
+const CHIP_VALUES = [25, 50, 100, 150, 200, 250, 300, 400, 500, 750, 1000, 1500, 2000, 2500, 3000, 5000, 10000, 15000, 20000, 25000, 50000];
+
+// Round to a "clean" poker blind number
+function roundBlind(value: number): number {
+  if (value <= 0) return 25;
+  if (value <= 100) return Math.max(25, Math.round(value / 25) * 25);
+  if (value <= 500) return Math.round(value / 50) * 50;
+  if (value <= 2000) return Math.round(value / 100) * 100;
+  if (value <= 10000) return Math.round(value / 500) * 500;
+  return Math.round(value / 1000) * 1000;
+}
+
+// Round ante to the nearest chip denomination
+function roundAnte(value: number): number {
+  if (value <= 0) return 0;
+  let closest = CHIP_VALUES[0];
+  let minDiff = Math.abs(value - closest);
+  for (const chip of CHIP_VALUES) {
+    const diff = Math.abs(value - chip);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = chip;
+    }
+  }
+  return closest;
+}
+
 export function generateBlindStructure(params: GenerateParams): BlindLevelInput[] {
-  const { starting_chips, target_duration_hours, level_duration_minutes, style, include_antes, ante_start_level, break_every_n_levels, break_duration_minutes } = params;
-  const { growthRate, startFraction } = STYLE_FACTORS[style];
+  const {
+    target_duration_hours, level_duration_minutes, style,
+    starting_big_blind, ante_type, ante_start_level,
+    break_every_n_levels, break_duration_minutes,
+  } = params;
+
+  const { growthRate } = STYLE_FACTORS[style];
 
   const totalMinutes = target_duration_hours * 60;
-  const breakMinutes = break_duration_minutes;
-  const levelsNeeded = Math.ceil(totalMinutes / (level_duration_minutes + breakMinutes / break_every_n_levels));
+  const avgLevelWithBreak = level_duration_minutes + (break_duration_minutes / break_every_n_levels);
+  const levelsNeeded = Math.ceil(totalMinutes / avgLevelWithBreak);
 
-  const startBB = Math.max(Math.round(starting_chips / startFraction / 25) * 25, 50);
-  const startSB = Math.round(startBB / 2);
+  const startBB = roundBlind(starting_big_blind);
+  const startSB = roundBlind(startBB / 2);
 
   const levels: BlindLevelInput[] = [];
   let levelNumber = 1;
@@ -41,26 +75,26 @@ export function generateBlindStructure(params: GenerateParams): BlindLevelInput[
         big_blind: 0,
         ante: 0,
         big_blind_ante: 0,
-        duration_minutes: breakMinutes,
+        duration_minutes: break_duration_minutes,
         is_break: true,
-        break_name: `Break`,
+        break_name: 'Break',
       });
     }
 
     const factor = Math.pow(growthRate, i);
-    let bb = Math.round((startBB * factor) / 25) * 25;
-    if (bb < 50) bb = 50;
-    let sb = Math.round(bb / 2 / 25) * 25;
-    if (sb < 25) sb = 25;
-
-    // Ensure bb is exactly 2x sb for clean numbers
-    if (bb < sb * 2) bb = sb * 2;
+    const sb = roundBlind(startSB * factor);
+    const bb = sb * 2;
 
     let ante = 0;
     let bbAnte = 0;
-    if (include_antes && (i + 1) >= ante_start_level) {
-      // BB ante = BB value
-      bbAnte = bb;
+    if (ante_type !== 'none' && (i + 1) >= ante_start_level) {
+      if (ante_type === 'bb_ante') {
+        bbAnte = bb;
+      } else {
+        // Regular ante = 12% of BB, rounded to nearest chip
+        ante = roundAnte(bb * 0.12);
+        if (ante > bb) ante = bb;
+      }
     }
 
     levels.push({

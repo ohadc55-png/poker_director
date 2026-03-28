@@ -41,6 +41,10 @@ export function useSocket(tournamentId: string | undefined) {
         updatePrizePool(data.total);
       }
     });
+    const onError = (data: any) => {
+      alert(data.error || 'שגיאה בשרת');
+    };
+    socket.on('timer:error' as any, onError);
 
     return () => {
       socket.off('timer:tick', onTick);
@@ -49,6 +53,7 @@ export function useSocket(tournamentId: string | undefined) {
       socket.off('timer:finished', onFinished);
       socket.off('players:updated');
       socket.off('prizePool:updated');
+      socket.off('timer:error' as any, onError);
     };
   }, [tournamentId, onTick, onLevelChanged, onStateChanged, onFinished, updatePlayers, updatePrizePool]);
 }

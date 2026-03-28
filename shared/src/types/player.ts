@@ -20,6 +20,7 @@ export interface TournamentPlayer {
   seat_number: number | null;
   status: PlayerStatus;
   finish_place: number | null;
+  has_entry: boolean;
   rebuys: number;
   addons: number;
   prize_won: number;
@@ -29,6 +30,7 @@ export interface TournamentPlayer {
   // Joined fields
   player_name?: string;
   player_nickname?: string;
+  bounties?: number;
 }
 
 export interface PlayerStats {
@@ -61,6 +63,8 @@ export interface TournamentHistoryEntry {
   tournament_id: string;
   tournament_name: string;
   tournament_date: string;
+  bounty_amount: number | null;
+  currency: string;
   finish_place: number | null;
   rebuys: number;
   addons: number;
@@ -68,6 +72,9 @@ export interface TournamentHistoryEntry {
   prize_won: number;
   net_result: number;
   status: string;
+  knocked_out_by_player_id: string | null;
+  knocked_out_by_name: string | null;
+  bounties_in_tournament: number;
 }
 
 export interface RivalEntry {
